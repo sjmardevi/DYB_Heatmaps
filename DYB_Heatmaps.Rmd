@@ -9,8 +9,6 @@ output:
 ```{r error=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-install.packages("Git")
-
 library(dplyr)
 library(janitor)
 library(tidyverse)
@@ -23,7 +21,6 @@ library(haven)
 library(naniar)
 library(pointblank)
 library(heatmaply)
-library(Git)
 ```
 
 # Summary Heatmaps: Data Availability (All Categories) by Number of Years from 2009 to 2018 (Blue Heatmaps)
