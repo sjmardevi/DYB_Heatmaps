@@ -9,6 +9,7 @@ output:
 ```{r error=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+
 library(dplyr)
 library(janitor)
 library(tidyverse)
@@ -21,6 +22,7 @@ library(haven)
 library(naniar)
 library(pointblank)
 library(heatmaply)
+library(ggpubr)
 ```
 
 # Summary Heatmaps: Data Availability (All Categories) by Number of Years from 2009 to 2018 (Blue Heatmaps)
@@ -258,15 +260,18 @@ num_years_plot <- function(region)
                                ifelse(region == "AS", "Arab States",
                                       ifelse(region == "EECA", "Eastern Europe and Central Asia",
                                              ifelse(region == "ESA", "Eastern and Southern Africa",
-                                                    ifelse(region == "LAC", "Latin America and Caribbean",
-                                                           ifelse(region == "WCA", "Western and Central Africa")))))), "Region",
+                                                    ifelse(region == "LAC", 
+                                                           "Latin America and Caribbean",
+                                                           ifelse(region == "WCA",
+                                                                  "Western and Central Africa")))))), 
+                     "Region",
                      "\nby Country and Vital Event(s), 2009-2018",
                      sep = " "),
        x = "Registered Vital Events Data", y = "Countries/Areas") +
   scale_x_discrete(labels = labels_pref)
 ```
 
-```{r fig.height = 6.5, fig.width = 10}
+```{r fig.height = 8, fig.width = 12}
 # Run heatmaps
 num_years_plot("AS")
 num_years_plot("AP")
@@ -392,36 +397,146 @@ table_year_unfpa <-
   data_year_lookup %>% 
   left_join(., all_tables_year, by=c("countries_areas", "data_available", "year")) %>% 
   mutate_at(vars(availability), ~replace(., is.na(.), 0)) %>% 
-  mutate(UNFPA_Regions = reorder(UNFPA_Regions, desc(availability)))
+  mutate(countries_areas = reorder(countries_areas, availability))
 ```
 
 ## Generate Summary Yearly Availability Heatmaps by Data Category
 ```{r fig.height = 14, fig.width = 10}
 
-all_plot_sum <- function(data_type, data_type_name) {
-ggplot(subset(table_year_unfpa, data_available %in% data_type), aes(x = year, y = countries_areas, fill= availability, color = "grey")) + 
+all_plot_sum <- function(region, data_type) {
+ggplot(subset(table_year_unfpa, c((data_available %in% data_type)&(UNFPA_Regions %in% region))), aes(x = year, y = countries_areas, fill= availability, color = "grey")) + 
   geom_tile() + 
-  facet_grid(UNFPA_Regions~., space = "free_y", scale = "free_y") +
   scale_fill_distiller(palette = "Purples", direction = +1, breaks = c(0, 1), limits=c(0,1)) +
-  theme(axis.text.x = element_text(size =0.5)) +
+  theme(axis.text.x = element_text(size =0.1)) +
   theme_classic()+
-  theme(legend.position = "none")+
-  labs(title = paste("Available Data of Registered", 
-                     data_type_name, "in All UNFPA Regions"), 
-       subtitle= "by Country and Year(s), 2009-2018",
-       x = "Year", y = "Country/Area")
+  theme(axis.title.x=element_blank(),
+        axis.title.y=element_blank()) +
+  theme(legend.position = "none")
 }
 ```
 
-```{r fig.height = 13, fig.width = 10}
-all_plot_sum("live_births", "Live Births")
-all_plot_sum("infant_deaths", "Infant Deaths")
-all_plot_sum("marriages", "Marriages")
-all_plot_sum("divorces", "Divorces")
-all_plot_sum("deaths", "Deaths")
-all_plot_sum("foetal_deaths", "Foetal Deaths")
+###### Figured out a way to combine separate heatmaps, but have yet to figure out how to align them properly
 
+```{r fig.height = 5, fig.width = 10}
+ap_lb <- all_plot_sum("AP", "live_births")
+as_lb <- all_plot_sum("AS", "live_births")
+eeca_lb <- all_plot_sum("EECA", "live_births")
+esa_lb <- all_plot_sum("ESA", "live_births")
+lac_lb <- all_plot_sum("LAC", "live_births")
+wca_lb <- all_plot_sum("WCA", "live_births")
 ```
+
+```{r fig.height = 17, fig.width = 10}
+ggarrange(eeca_lb, lac_lb, as_lb, ap_lb, esa_lb, wca_lb, 
+          labels = c("EECA", "LAC", "AS", "AP", "ESA", "WCA"),
+          heights = c(2.2, 4.8, 2, 4.2, 3, 3),
+          ncol = 1, nrow = 6)
+```
+
+```{r}
+ap_id <- all_plot_sum("AP", "infant_deaths")
+as_id <- all_plot_sum("AS", "infant_deaths")
+eeca_id <- all_plot_sum("EECA", "infant_deaths")
+esa_id <- all_plot_sum("ESA", "infant_deaths")
+lac_id <- all_plot_sum("LAC", "infant_deaths")
+wca_id <- all_plot_sum("WCA", "infant_deaths")
+```
+
+```{r fig.height = 17, fig.width = 10}
+ggarrange(eeca_id, lac_id, as_id, ap_id, esa_id, wca_id, 
+          labels = c("EECA", "LAC", "AS", "AP", "ESA", "WCA"),
+          heights = c(2.2, 4.8, 2, 4.2, 3, 3),
+          ncol = 1, nrow = 6)
+```
+
+```{r fig.height = 5, fig.width = 10}
+eeca_lb <- all_plot_sum("EECA", "live_births")
+all_plot_sum("EECA", "infant_deaths")
+all_plot_sum("EECA", "marriages")
+all_plot_sum("EECA", "divorces")
+all_plot_sum("EECA", "deaths")
+all_plot_sum("EECA", "foetal_deaths")
+```
+
+```{r fig.height = 5, fig.width = 10}
+ap_id <- all_plot_sum("AP", "infant_deaths")
+as_id <- all_plot_sum("AS", "infant_deaths")
+eeca_id <- all_plot_sum("EECA", "infant_deaths")
+esa_id <- all_plot_sum("ESA", "infant_deaths")
+lac_id <- all_plot_sum("LAC", "infant_deaths")
+wca_id <- all_plot_sum("WCA", "infant_deaths")
+```
+
+```{r fig.height = 17, fig.width = 10}
+ggarrange(eeca_id, lac_id, as_id, ap_id, esa_id, wca_id, 
+          labels = c("EECA", "LAC", "AS", "AP", "ESA", "WCA"),
+          heights = c(2.2, 4.8, 2, 4.2, 3, 3),
+          ncol = 1, nrow = 6)
+```
+
+```{r fig.height = 5, fig.width = 10}
+esa_lb <- all_plot_sum("ESA", "live_births")
+all_plot_sum("ESA", "infant_deaths")
+all_plot_sum("ESA", "marriages")
+all_plot_sum("ESA", "divorces")
+all_plot_sum("ESA", "deaths")
+all_plot_sum("ESA", "foetal_deaths")
+```
+
+```{r fig.height = 5, fig.width = 10}
+lac_lb <- all_plot_sum("LAC", "live_births")
+all_plot_sum("LAC", "infant_deaths")
+all_plot_sum("LAC", "marriages")
+all_plot_sum("LAC", "divorces")
+all_plot_sum("LAC", "deaths")
+all_plot_sum("LAC", "foetal_deaths")
+```
+
+```{r fig.height = 5, fig.width = 10}
+wca_lb <- all_plot_sum("WCA", "live_births")
+all_plot_sum("WCA", "infant_deaths")
+all_plot_sum("WCA", "marriages")
+all_plot_sum("WCA", "divorces")
+all_plot_sum("WCA", "deaths")
+all_plot_sum("WCA", "foetal_deaths")
+```
+
+# Fac
+
+```{r fig.height = 14, fig.width = 10}
+
+all_plot_sum_facet <- function(data_type) {
+ggplot(subset(table_year_unfpa, data_available %in% data_type), 
+       aes(x = year, y = countries_areas, fill= availability, color = "grey")) + 
+  geom_tile() + 
+  facet_grid(UNFPA_Regions~., space= "free_y", scales = "free_y")+
+  scale_fill_distiller(palette = "Purples", direction = +1, breaks = c(0, 1), limits=c(0,1)) +
+  theme(axis.text.x = element_text(size =0.1)) +
+  theme_classic()+
+  theme(legend.position = "none")+
+  labs(title = paste("Available Data of Registered", 
+                     ifelse(data_type=="live_births", "Live Births",
+                            ifelse(data_type == "infant_deaths", "Infant Deaths",
+                                   ifelse(data_type == "marriages", "Marriages",
+                                          ifelse(data_type=="divorces", "Divorces",
+                                                 ifelse(data_type=="deaths", "General Deaths",
+                                                        ifelse(data_type == "foetal_deaths", "Foetal Deaths")))))),
+                     "Region, 2009-2018"), 
+       x = "Year", y = "Country/Area") 
+}
+```
+
+```{r fig.height = 12, fig.width = 10}
+all_plot_sum_facet("live_births")
+all_plot_sum_facet("infant_deaths")
+all_plot_sum_facet("marriages")
+all_plot_sum_facet("divorces")
+all_plot_sum_facet("deaths")
+all_plot_sum_facet("foetal_deaths")
+```
+
+
+
 
 # Detailed Heatmaps: Numbers of Years Available by Types of Registration from 2009 to 2018 (Green Heatmaps)
 
@@ -477,7 +592,7 @@ all_bts_excel <-
 # Create Freq Table Function for non-Urban/Rural DYB Tables
 ap_transform <- function(data, data_type) {
   data[- 1, ] %>%
-  select (1:2) %>% 
+  dplyr::select (1:2) %>% 
   rename_all(~c("countries_areas", "total")) %>% 
   mutate(countries_areas = gsub('[0-9]+', '', countries_areas)) %>% 
   filter (!(countries_areas %in% c(" - ", " +", " (C)", " (+U)", " (|)", " (U)", 
@@ -518,7 +633,7 @@ st_clean <- function(data) {
     clean_names() %>% 
     group_by(country_or_area, year) %>%
     summarise(n=n()) %>% 
-    select(country_or_area, year) %>% 
+    dplyr::select(country_or_area, year) %>% 
     rename("countries_areas" = country_or_area) %>% 
     group_by(countries_areas) %>% 
     summarise(n=n())
@@ -584,12 +699,16 @@ births_unfpa_clean <-
 ```
 
 
-```{r fig.height = 6.5, fig.width = 10}
+```{r fig.height = 8, fig.width = 10}
 
 # Generate Live Birth Heatmaps
 
-birth_labels <- c("Urban & Rural", "Age of Mother", "Age of Father", "Order & Age of Mother",  "Order & Sex", "Birth Month", "Weight & Sex", "Gestational Age", "Marriage Duration\nof Parents", "Birth Plurality")
-birth_prefs <- c("births_urbanrural", "births_age_mother", "births_age_father", "birth_order", "birth_ord_sex", "birth_month", "birth_bw_sex", "birth_gestation", "birth_mar_len", "birth_plural")
+birth_labels <- c("Urban & Rural", "Age of Mother*", "Age of Father*", "Order & Age of Mother", 
+                  "Order & Sex", "Birth Month", "Weight & Sex", "Gestational Age", 
+                  "Marriage Duration\nof Parents", "Birth Plurality")
+birth_prefs <- c("births_urbanrural", "births_age_mother", "births_age_father", 
+                 "birth_order", "birth_ord_sex", "birth_month", "birth_bw_sex", "birth_gestation", 
+                 "birth_mar_len", "birth_plural")
 
 det_heatmap(births_unfpa_clean, "AP", "Live Births", birth_labels, birth_prefs)
 det_heatmap(births_unfpa_clean, "AS", "Live Births", birth_labels, birth_prefs)
@@ -656,7 +775,9 @@ all_mardivs_tables <- bind_rows(all_mardivs_long, md_am_clean1, md_am_clean2)
 ```{r error=FALSE, warning=FALSE, message=FALSE}
 
 # Create Marriage and Divorces Lookup
-lookup_mardiv_unfpa <- lookup_score(c("marriage_cross", "divorce_ur", "marriage_1st_age", "marriage_ur", "marriage_age"), all_mardivs_tables)
+lookup_mardiv_unfpa <- lookup_score(c("marriage_cross", "divorce_ur", 
+                                      "marriage_1st_age", "marriage_ur", "marriage_age"), 
+                                    all_mardivs_tables)
 
 ```
 
@@ -679,7 +800,8 @@ mardiv_unfpa_clean <-
 # Generate Marriage/Divorces Heatmaps
 
 mardiv_levels <- c("marriage_ur", "marriage_cross", "marriage_age", "marriage_1st_age", "divorce_ur")
-mardiv_labels <- c("Urban/Rural\n(Marriages)", "Prior Marital Status\n(Marriages)", "Age\n(Marriages)", "Age at First Marriage\n(Marriages)", "Urban/Rural\n(Divorces)")
+mardiv_labels <- c("Urban/Rural\n(Marriages)", "Prior Marital Status\n(Marriages)", 
+                   "Age\n(Marriages)", "Age at First Marriage\n(Marriages)", "Urban/Rural\n(Divorces)")
 
 det_heatmap(mardiv_unfpa_clean, "AP", "Marriages and Divorces", mardiv_labels, mardiv_levels)
 det_heatmap(mardiv_unfpa_clean, "AS", "Marriages and Divorces", mardiv_labels, mardiv_levels)
@@ -744,7 +866,9 @@ id_urbanrural_long <-
   cbind(data_available = "inf_death_urbanrural")
 
 
-all_gfd_tables <- bind_rows(rbindlist(all_gds_long), rbindlist(all_fds_long), all_fds_long, id_agesex_long, id_urbanrural_long)
+all_gfd_tables <- bind_rows(rbindlist(all_gds_long), 
+                            rbindlist(all_fds_long), all_fds_long, id_agesex_long, 
+                            id_urbanrural_long)
 ```
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
@@ -753,16 +877,14 @@ all_gfd_tables <- bind_rows(rbindlist(all_gds_long), rbindlist(all_fds_long), al
 id_agesex_long<-
   id_agesex[- 1, ] %>%
   select (1:2) %>% 
-  rename_all(~c("countries_areas", "total")) %>% 
-  mutate(countries_areas = gsub('[0-9]+', '', countries_areas)) %>% 
-  separate(countries_areas, c("countries_areas"), " - ") %>% 
-  filter (!(countries_areas %in% c(" - ", "+", " (C)", "(+U)", "(|)", " (U)", 
-                                   " (+C)", "*(C)", "*(+C)", "*(+U)", 
-                                   "Unknown - Inconnu", "* (U)", "days", "months", "Less than  day")))
+  rename_all(~c("countries_areas", "total"))   
 ```
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-lookup_gfd_unfpa <- lookup_score(c("inf_death_age_sex", "inf_death_urbanrural", "gm_cause", "gm_age_sex_ur", "gm_month", "gm_sex_ur", "ab_urbanrural", "fd_agewoman", "fd_gest_age", "fd_sex_ur"), all_gfd_tables)
+lookup_gfd_unfpa <- lookup_score(c("inf_death_urbanrural", 
+                                   "gm_cause", "gm_age_sex_ur", "gm_month", "gm_sex_ur", 
+                                   "ab_urbanrural", "fd_agewoman", "fd_gest_age", "fd_sex_ur"), 
+                                 all_gfd_tables)
 ```
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
@@ -780,7 +902,7 @@ gfd_unfpa_clean <-
 
 ```{r fig.height = 6.5, fig.width = 10}
 
-GF_levels <- c("fd_sex_ur", "fd_agewoman", "fd_gest_age", "inf_death_urbanrural", "inf_death_age_sex","ab_urbanrural", "gm_sex_ur", "gm_age_sex_ur", "gm_cause", "gm_month")
+GF_levels <- c("fd_sex_ur", "fd_agewoman", "fd_gest_age", "inf_death_urbanrural", "ab_urbanrural", "gm_sex_ur", "gm_age_sex_ur", "gm_cause", "gm_month")
 GF_labels <- c("Urban/Rural\n(Foetal Deaths)", "Age of Mother\n(Foetal Deaths)", "Gestational Age\n(Foetal Deaths)", "Urban/Rural\n(Infant Deaths)", "Age & Sex\n(Infant Deaths)", "Urban/rural\n(Abortions)", "Sex & Urban/Rural\n(General Deaths)", "Age, Sex, & Urban/Rural\n(General Deaths)", "Cause\n(General Deaths)", "Month\n(General Deaths)")
 
 det_heatmap(gfd_unfpa_clean, "AP", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels)
@@ -788,7 +910,8 @@ det_heatmap(gfd_unfpa_clean, "AS", "Foetal Deaths, Abortions, and General Deaths
 det_heatmap(gfd_unfpa_clean, "EECA", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels)
 det_heatmap(gfd_unfpa_clean, "ESA", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels)
 det_heatmap(gfd_unfpa_clean, "LAC", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels)
-det_heatmap(gfd_unfpa_clean, "WCA", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels) # Will fix this title wrapping
+det_heatmap(gfd_unfpa_clean, "WCA", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels, GF_levels) 
+# Will fix this title wrapping
 
 
 ```
@@ -860,12 +983,17 @@ all_gds_age_sex_long <- la_transform_mod(all_gds_age_sex_excel, "gd_age_sex")
 
 ## Test Visualization
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-lookup_gfd_unfpa_mod <- lookup_score(c("inf_death_age_sex", "inf_death_urbanrural", "gm_cause", "gm_age_sex_ur", "gm_month", "gm_sex_ur", "gd_age_sex", "ab_urbanrural", "fd_agewoman", "fd_gest_age", "fd_sex_ur"), all_gfd_tables)
+lookup_gfd_unfpa_mod <- lookup_score(c("inf_death_age_sex", "inf_death_urbanrural", 
+                                       "gm_cause", "gm_age_sex_ur", "gm_month", "gm_sex_ur", 
+                                       "gd_age_sex", "ab_urbanrural", "fd_agewoman", "fd_gest_age", 
+                                       "fd_sex_ur"), all_gfd_tables)
 ```
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
-all_gfd_tables_mod <- bind_rows(rbindlist(all_gds_long), rbindlist(all_fds_long), all_fds_long, id_agesex_long, all_gds_age_sex_long, id_agesex_long, id_urbanrural_long)
-all_gfd_unfpa_mod <- left_join(lookup_gfd_unfpa_mod, all_gfd_tables_mod, by = c("countries_areas", "data_available"))
+all_gfd_tables_mod <- bind_rows(rbindlist(all_gds_long), rbindlist(all_fds_long), 
+                                all_fds_long, id_agesex_long, all_gds_age_sex_long, id_agesex_long, id_urbanrural_long)
+all_gfd_unfpa_mod <- left_join(lookup_gfd_unfpa_mod, all_gfd_tables_mod, 
+                               by = c("countries_areas", "data_available"))
 ```
 
 ```{r error=FALSE, warning=FALSE, message=FALSE}
@@ -876,11 +1004,16 @@ gfd_unfpa_clean_mod <-
   mutate (countries_areas = reorder(countries_areas, score))
 ```
 
-```{r fig.height = 6.5, fig.width = 10}
+```{r fig.height = 8, fig.width = 10}
 
 
-GF_levels_mod <- c("fd_sex_ur", "fd_agewoman", "fd_gest_age", "inf_death_urbanrural", "inf_death_age_sex","ab_urbanrural", "gm_sex_ur", "gd_age_sex", "gm_age_sex_ur", "gm_cause", "gm_month")
-GF_labels_mod <- c("Urban/Rural\n(Foetal Deaths)", "Age of Mother\n(Foetal Deaths)", "Gestational Age\n(Foetal Deaths)", "Urban/Rural\n(Infant Deaths)", "Age & Sex\n(Infant Deaths)", "Urban/rural\n(Abortions)", "Sex & Urban/Rural\n(General Deaths)", "Age, Sex, & Urban/Rural\n(General Deaths)", "Age & Sex\n(General Deaths)", "Cause\n(General Deaths)", "Month\n(General Deaths)")
+GF_levels_mod <- c("fd_sex_ur", "fd_agewoman", "fd_gest_age", "inf_death_urbanrural", 
+                   "inf_death_age_sex","ab_urbanrural", "gm_sex_ur", "gd_age_sex", 
+                   "gm_age_sex_ur", "gm_cause", "gm_month")
+GF_labels_mod <- c("Urban/Rural\n(Foetal Deaths)", "Age of Mother\n(Foetal Deaths)", 
+                   "Gestational Age\n(Foetal Deaths)", "Urban/Rural\n(Infant Deaths)", 
+                   "Age & Sex\n(Infant Deaths)", "Urban/rural\n(Abortions)", "Sex & Urban/Rural\n(General Deaths)", 
+                   "Age, Sex, & Urban/Rural\n(General Deaths)", "Age & Sex\n(General Deaths)", "Cause\n(General Deaths)", "Month\n(General Deaths)")
 
 det_heatmap(gfd_unfpa_clean_mod, "AP", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels_mod, GF_levels_mod)
 det_heatmap(gfd_unfpa_clean_mod, "AS", "Foetal Deaths, Abortions, and General Deaths\n", GF_labels_mod,  GF_levels_mod)
